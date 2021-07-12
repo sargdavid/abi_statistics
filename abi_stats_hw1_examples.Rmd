@@ -1,0 +1,133 @@
+---
+title: "t-Test, ANOVA and dot-plot examples"
+output: html_notebook
+---
+
+# Load R libraries
+```{r setup}
+require(data.table)
+require(ggplot2)
+require(multcomp)
+```
+
+# Read RData (HW1)
+```{r data}
+load("data/dt1.RData")
+dt1
+```
+
+# Plot data
+```{r dot_plot}
+p1 <- ggplot(dt1,
+             aes(x = Treatment,
+                 y = Weight,
+                 group = ID,
+                 fill = Diet)) + 
+  geom_point(shape = 21,
+             size = 3,
+             position = position_dodge(0.3)) +
+  scale_y_continuous("Weight (gm)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1))
+
+# Save the plot as a TIFF file
+tiff(filename = "data/dotplot.tiff",
+     height = 5,
+     width = 6,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
+graphics.off()
+
+print(p1)
+```
+
+# Examples of t-Test and ANOVA
+You need to adopt it to analyze **your** data. Be mindful of different groups and data structure in general. Read up the documentation and understand what the functions do and how the tests are done.  
+  
+## t-Test example
+```{r t_test}
+?t.test
+
+set.seed(1110198)
+dt2 <- data.table(Group = rep(c("A", "B"), 
+                              each = 30),
+                  Readout = c(rnorm(n = 30,
+                                    mean = 10,
+                                    sd = 5),
+                              rnorm(n = 30,
+                                    mean = 15,
+                                    sd = 5)))
+head(dt2)
+                  
+p1 <- ggplot(dt2,
+             aes(x = Readout,
+                 group = Group,
+                 fill = Group)) +
+  geom_histogram(color = "black",
+                 bins = 6,
+                 alpha = 0.7)
+p1
+
+p2 <- ggplot(dt2,
+             aes(x = Group,
+                 y = Readout,
+                 group = Group,
+                 fill = Group)) +
+  geom_boxplot()
+p2
+
+t.test(Readout ~ Group,
+       data = dt2)
+```
+
+## Analysis Of VAriance (ANOVA)
+```{r anova}
+set.seed(1110198)
+dt3 <- data.table(Group = factor(rep(c("A", "B", "C"), 
+                                     each = 30)),
+                  Readout = c(rnorm(n = 30,
+                                    mean = 10,
+                                    sd = 5),
+                              rnorm(n = 30,
+                                    mean = 15,
+                                    sd = 5),
+                              rnorm(n = 30,
+                                    mean = 8,
+                                    sd = 5)))
+head(dt3)
+
+p3 <- ggplot(dt3,
+             aes(x = Readout,
+                 group = Group,
+                 fill = Group)) +
+  geom_histogram(color = "black",
+                 bins = 6,
+                 alpha = 0.7)
+p3
+
+p4 <- ggplot(dt3,
+             aes(x = Group,
+                 y = Readout,
+                 group = Group,
+                 fill = Group)) +
+  geom_boxplot()
+p4
+
+?aov
+m1 <- aov(Readout ~ Group,
+            data = dt3)
+summary(m1)
+
+?multcomp::glht
+# p-Values adjusted for multiplicity
+m1_mult_comp_adj <- glht(m1,
+                         linfct = mcp("Group" = "Tukey"))
+m1_mult_comp_adj
+summary(m1_mult_comp_adj)
+```
+
+
+
