@@ -1,0 +1,263 @@
+---
+title: "HW2: Mouse Body Weight Over Time. Regression."
+output: html_notebook
+---
+
+# Load R libraries
+```{r setup}
+require(data.table)
+require(ggplot2)
+require(DT)
+require(multcomp)
+```
+
+# Simulate data
+```{r data_sim}
+set.seed(1110198)
+dt1 <- data.table(ID = factor(1:40,
+                              levels = 1:40),
+                  Diet = factor(rep(c("Grain",
+                                      "Grain+Cheese"),
+                                    each = 20),
+                                levels = c("Grain",
+                                           "Grain+Cheese")),
+                  Days = sample(x = 1:90,
+                                size = 40,
+                                replace = TRUE))
+
+dt1[, Weight := 2 + 
+      (18/90)*Days*(Diet == "Grain") +
+      (30/90)*Days*(Diet == "Grain+Cheese") +
+      rnorm(n = 40,
+            mean = 0,
+            sd = 1)]
+dt1$Weight[dt1$Weight < 2] <- 2
+
+save(dt1,
+     file = "data/wgt_age.RData")
+write.csv(dt1,
+          file = "data/wgt_age.CSV",
+          row.names = FALSE)
+```
+
+# Plot
+```{r dotplot}
+p1 <- ggplot(dt1,
+             aes(x = Days,
+                 y = Weight,
+                 group = Diet,
+                 fill = Diet)) +
+  geom_point(shape = 21,
+             size = 3) +
+  scale_x_continuous("Age (Days)",
+                     breaks = seq(0, 90, by = 10)) +
+  theme_bw() +
+  theme(legend.position = "top")
+
+# Save the plot as a TIFF file
+tiff(filename = "tmp/wgt_age_dotplot.tiff",
+     height = 5,
+     width = 6,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p1)
+graphics.off()
+
+print(p1)
+```
+
+# Normal (grain) diet only
+```{r dtg}
+dtg$Month <- 1
+dtg$Month[dtg$Days >= 30] <- 2
+dtg$Month[dtg$Days >= 60] <- 3
+
+mu <- dtg[, .(Mu = mean(Weight),
+              SEM = sd(Weight)/sqrt(.N)),
+          by = Month]
+setorder(mu, Month)
+mu
+
+dtg <- droplevels(dtg[Diet == "Grain", ])
+
+p2 <- ggplot(dtg,
+             aes(x = Days,
+                 y = Weight,
+                 fill = ID)) +
+  geom_vline(xintercept = c(0, 30, 60, 90),
+             linetype = "dashed") +
+  geom_point(shape = 21,
+             size = 3) +
+  geom_segment(data = mu,
+               aes(x = c(0, 30, 60),
+                   xend = c(30, 60, 90),
+                   y = Mu,
+                   yend = Mu),
+               inherit.aes = FALSE,
+               color = "red",
+               size = 2) +
+  scale_x_continuous("Age (Days)",
+                     breaks = seq(0, 90, by = 10)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+# Save the plot as a TIFF file
+tiff(filename = "tmp/wgt_age_g_dotplot.tiff",
+     height = 4,
+     width = 5,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p2)
+graphics.off()
+
+print(p2)
+```
+
+```{r lm}
+m1 <- lm(Weight ~ Days,
+         data = dtg)
+summary(m1)
+m1$coefficients
+```
+
+```{r}
+p3 <- ggplot(dtg,
+             aes(x = Days,
+                 y = Weight,
+                 fill = ID)) +
+  geom_point(shape = 21,
+             size = 3) +
+  geom_abline(intercept = m1$coefficients[1],
+              slope = m1$coefficients[2],
+              color = "red") +
+  scale_x_continuous("Age (Days)",
+                     breaks = seq(0, 90, by = 10)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+tiff(filename = "tmp/wgt_age_lm.tiff",
+     height = 4,
+     width = 5,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p3)
+graphics.off()
+
+p3
+```
+
+# Predictions
+```{r}
+dtg$prd1 <- predict(m1)
+```
+
+```{r}
+p3.1 <- ggplot(dtg,
+             aes(x = Days,
+                 y = prd1,
+                 fill = ID)) +
+  geom_point(shape = 21,
+             size = 3) +
+  geom_abline(intercept = m1$coefficients[1],
+              slope = m1$coefficients[2],
+              color = "red") +
+  scale_x_continuous("Age (Days)",
+                     breaks = seq(0, 90, by = 10)) +
+  scale_y_continuous("Predicted Weight") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+tiff(filename = "tmp/wgt_age_prd.tiff",
+     height = 4,
+     width = 5,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p3.1)
+graphics.off()
+
+p3.1
+```
+
+```{r lm2}
+dtd <- droplevels(dt1[Diet != "Grain", ])
+m2 <- lm(Weight ~ Days,
+         data = dtd)
+summary(m2)
+m2$coefficients
+```
+
+```{r}
+p4 <- ggplot(dt1,
+             aes(x = Days,
+                 y = Weight,
+                 fill = Diet)) +
+  geom_point(shape = 21,
+             size = 3) +
+  geom_abline(intercept = m1$coefficients[1],
+              slope = m1$coefficients[2],
+              color = "red") +
+  geom_abline(intercept = m2$coefficients[1],
+              slope = m2$coefficients[2],
+              color = "blue") +
+  scale_x_continuous("Age (Days)",
+                     breaks = seq(0, 90, by = 10)) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+tiff(filename = "tmp/wgt_age_lm2.tiff",
+     height = 4,
+     width = 5,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+print(p4)
+graphics.off()
+
+p4
+```
+
+```{r}
+m3 <- lm(Weight ~ Days + Diet,
+         data = dt1)
+summary(m3)
+```
+
+```{r}
+m3 <- lm(Weight ~ Days*Diet,
+         data = dt1)
+summary(m3)
+```
+
+# Brain data
+```{r}
+brains <- MASS::Animals
+tiff(filename = "tmp/brain1.tiff",
+     height = 4,
+     width = 5,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+plot(brains$body ~ brains$brain,
+     xlab = "Brain Size",
+     ylab = "Body Weight")
+graphics.off()
+
+tiff(filename = "tmp/brain2.tiff",
+     height = 4,
+     width = 5,
+     units = 'in',
+     res = 300,
+     compression = "lzw+p")
+plot(log(brains$body) ~ log(brains$brain),
+     xlab = "Transformed Brain Size",
+     ylab = "Transformed Body Weight")
+graphics.off()
+
+write.csv(brains,
+          file = "tmp/brains.csv")
+```
+
